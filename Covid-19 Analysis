@@ -138,6 +138,3 @@ FROM Portfolioproject..['covid-deaths']
 GROUP BY location, population
 
 
-
-SELECT *
-FROM people_vaccinated
