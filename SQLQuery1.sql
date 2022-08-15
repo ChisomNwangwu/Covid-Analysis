@@ -1,0 +1,143 @@
+SELECT *
+FROM Portfolioproject..['covid-deaths']
+ORDER BY 3,4
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM Portfolioproject..['covid-deaths']
+ORDER BY 1,2
+
+--Total_cases vs Total_deaths
+
+SELECT location, date, total_cases, total_deaths, (total_deaths/total_cases) * 100 as death_percentage
+FROM Portfolioproject..['covid-deaths']
+ORDER BY 1,2
+
+-- Death percentage in Nigeria
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM Portfolioproject..['covid-deaths']
+WHERE location like'%Nigeria%'
+ORDER BY 1,2
+
+-- Total_cases vs Population
+-- Infected percentage in Nigeria
+
+SELECT location, date, population, total_cases, (total_cases/population) * 100 as infected_percentage
+FROM Portfolioproject..['covid-deaths']
+WHERE location like '%Nigeria%'
+ORDER BY 1,2
+
+-- Countries with highest infection rate compared to population
+
+SELECT location, population, MAX(total_cases) as highest_infection_count, MAX((total_cases/population)) * 100 as highest_infected_population
+FROM Portfolioproject..['covid-deaths']
+GROUP BY location, population
+ORDER BY highest_infected_population DESC
+
+-- Countries with highest death count per populaton
+
+SELECT location, MAX(CAST(total_deaths as INT)) as total_death_count
+FROM Portfolioproject..['covid-deaths']
+WHERE continent is not null
+GROUP BY location
+ORDER BY total_death_count DESC
+
+-- Continents with highest death count per population
+
+SELECT continent, MAX(CAST(total_deaths as INT)) as total_death_count
+FROM Portfolioproject..['covid-deaths']
+WHERE continent is not null
+GROUP BY continent
+ORDER BY total_death_count DESC
+
+--Global numbers
+
+SELECT date, SUM(new_cases) as total_cases, SUM(CAST(new_deaths as INT)) as total_deaths, SUM(CAST(new_deaths as INT))/SUM(new_cases) * 100 AS death_percentage
+FROM Portfolioproject..['covid-deaths']
+WHERE continent is not null
+GROUP BY date
+ORDER BY 1,2
+
+SELECT SUM(new_cases) as total_cases, SUM(CAST(new_deaths as INT)) as total_deaths, SUM(CAST(new_deaths as INT))/SUM(new_cases) * 100 AS death_percentage
+FROM Portfolioproject..['covid-deaths']
+WHERE continent is not null
+ORDER BY 1,2
+
+--Joining the covid deaths and vaccination tables
+
+SELECT *
+FROM Portfolioproject..['covid-deaths'] death
+JOIN Portfolioproject..['covid vacinations'] vaccine
+    ON death.location = vaccine.location
+	AND death.date = vaccine.date
+
+-- Total_populaton vs vaccination
+
+SELECT death.continent, death.location, death.date, death.population, vaccine.new_vaccinations
+FROM Portfolioproject..['covid-deaths'] death
+JOIN Portfolioproject..['covid vacinations'] vaccine
+    ON death.location = vaccine.location
+	AND death.date = vaccine.date
+WHERE death.continent is not null
+ORDER BY 2,3
+
+
+SELECT death.continent, death.location, death.date, death.population, vaccine.new_vaccinations
+, SUM(CONVERT(bigint, vaccine.new_vaccinations)) OVER (PARTITION BY death.location ORDER BY death.location, death.date) as people_vaccinated
+FROM Portfolioproject..['covid-deaths'] death
+JOIN Portfolioproject..['covid vacinations'] vaccine
+    ON death.location = vaccine.location
+	AND death.date = vaccine.date
+WHERE death.continent is not null
+ORDER BY 2,3
+
+WITH populationvsvaccination (continent, location, date, population, new_vaccinations, people_vaccinated)
+AS
+(
+SELECT death.continent, death.location, death.date, death.population, vaccine.new_vaccinations
+, SUM(CONVERT(bigint, vaccine.new_vaccinations)) OVER (PARTITION BY death.location ORDER BY death.location, death.date) as people_vaccinated
+FROM Portfolioproject..['covid-deaths'] death
+JOIN Portfolioproject..['covid vacinations'] vaccine
+    ON death.location = vaccine.location
+	AND death.date = vaccine.date
+WHERE death.continent is not null
+)
+SELECT *, (people_vaccinated/population) * 100
+FROM populationvsvaccination
+
+--Creating Views
+
+CREATE VIEW people_vaccinated AS
+SELECT death.continent, death.location, death.date, death.population, vaccine.new_vaccinations
+, SUM(CONVERT(bigint, vaccine.new_vaccinations)) OVER (PARTITION BY death.location ORDER BY death.location, death.date) as people_vaccinated
+FROM Portfolioproject..['covid-deaths'] death
+JOIN Portfolioproject..['covid vacinations'] vaccine
+    ON death.location = vaccine.location
+	AND death.date = vaccine.date
+WHERE death.continent is not null
+
+CREATE VIEW total_deaths_Nigeria AS
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM Portfolioproject..['covid-deaths']
+WHERE location like'%Nigeria%'
+
+CREATE VIEW total_death_count AS
+SELECT continent, MAX(CAST(total_deaths as INT)) as total_death_count
+FROM Portfolioproject..['covid-deaths']
+WHERE continent is not null
+GROUP BY continent
+
+CREATE VIEW infected_percentage_Nigeria AS
+SELECT location, date, population, total_cases, (total_cases/population) * 100 as infected_percentage
+FROM Portfolioproject..['covid-deaths']
+WHERE location like '%Nigeria%'
+
+CREATE VIEW highest_infected_population
+SELECT location, population, MAX(total_cases) as highest_infection_count, MAX((total_cases/population)) * 100 as highest_infected_population
+FROM Portfolioproject..['covid-deaths']
+GROUP BY location, population
+
+
+
+SELECT *
+FROM people_vaccinated
